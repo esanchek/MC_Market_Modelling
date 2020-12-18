@@ -1,0 +1,87 @@
+@model<probabilistic>
+
+/* Parameters */
+/* k1 = number of producers 				*/
+/* k2 = number of retailers 				*/
+/* k3 = units of raw material inserted into the system each cycle 		*/
+/* k4 = deviation from k3 				*/
+/* k5 = units of orders from consumers inserted into the system each cycle 	*/
+/* k6 = deviation from k5 				*/
+/* k7 = ps(a) price of a when S sells one item of a to any producer 	*/
+/* k8 = pc(d) price of one d when C "sells" one d 		*/
+/* k9 = depretiation rate 				*/
+
+/* ki1 = producer i capacity, bi 				*/
+/* ki2 = producer i initial capital 				*/
+/* kj3 = retailer j capacity cj 				*/
+/* ki4 = probability of each value around k3 			*/
+/* ki5 = probability of each value around k5 			*/
+/* ki6 = psj(d) price of d when sold by Rj to C 			*/
+/* ki7 = ppi(d) price of d set by pi 			*/
+
+def main()
+{
+  call init_membrane_structure();
+  call init_multisets();
+  call init_rules();
+}
+
+def init_membrane_structure()
+{
+  @mu = [ [ [ [ ]'2]'1]'101,101]'global;
+}
+
+def init_multisets()
+{
+@ms(1) = c, s, r1, r2;                             	/* Generic raw source, consumer source */ 
+@ms(1) += b{i}*k{i,1}: 1<=i<=k{1};	/* Producers capacities */
+@ms(1) += u{i}*k{i,2}: 1<=i<=k{1};	/* Producers initial capital */
+@ms(1) += c{j}*k{j,3}: 1<=j<=k{2};	/* Retailers capacities */
+}
+
+def init_rules()
+{
+
+ /******************************************* clock step 1*******************************************/ 
+ /* Raw material from source S. a => units of raw material. ps(a) => price of raw material */
+
+ /*r1*/	s, r1 [ ]'2  --> s, a*(k{3}+k{4}) +[r1]'2	:: k{1,4};
+ /*r2*/	s, r1 [ ]'2  --> s, a*k{3} +[r1]'2               	:: k{2,4};		
+ /*r3*/    	s, r1 [ ]'2  --> s, a*(k{3}-k{4}) +[r1]'2    	:: k{3,4};		
+ /*r4*/    	s, r1 [ ]'2  --> s, a*(k{3}-2*k{4}) +[r1]'2  	:: (1-k{1,4}-k{2,4}-k{3,4});		
+
+ /* Aggregate consumer C needs. dn => units of need of good pc(d) => price to buy a unit of good */
+
+ /*r5*/    	c, r2 [ ]'2 --> c, dn*(k{5}+k{6}),uc*((k{5}+k{6})*k{8}) +[r2]'2	:: k{1,5};     		
+ /*r6*/    	c, r2 [ ]'2 --> c, dn*k{5},uc*(k{5}*k{8}) +[r2]'2               	:: k{2,5};	
+ /*r7*/    	c, r2 [ ]'2 --> c, dn*(k{5}-k{6}),uc*((k{5}-k{6})*k{8}) +[r2]'2     	:: k{3,5};	
+ /*r8*/    	c, r2 [ ]'2 --> c, dn*(k{5}-2*k{6}),uc*((k{5}-2*k{6})*k{8}) +[r2]'2 	:: (1-k{1,5}-k{2,5}-k{3,5});	
+
+ /******************************************* clock step 2 *******************************************/
+
+ /*r9*/     	b{i}, a , u{i}*k{7} +[ ]'2 --> us*k{7} [ d{i} ]'2            	      ::1 : 1<=i<=k{1};      /* Producer operation */
+ /*r10*/   	c{j}, dn, uc*k{j,7} +[ ]'2 --> [ dn{j}, v{j}*k{j,7} ]'2    	      ::1 : 1<=j<=k{2};      /* Retailer operation */
+
+ /* Technical operations */
+ /*r11*/   	d{i} +[ ]'2 --> [ d{i} ]'2     	:: 1 : 1<=i<=k{1};      /*********************************************/ 
+ /*r12*/   	dn{j} +[ ]'2 --> [ dn{j} ]'2 	:: 1 : 1<=j<=k{2};      /* Meter los d, dn y v de ciclos anteriores */                          
+ /*r13*/   	v{j} +[ ]'2 --> [ v{j} ]'2      	:: 1 : 1<=j<=k{2};      /*********************************************/		
+
+ /********************************* clock step 3 *********************************/
+
+ /*r14*/   [ dn{1} ]'2 --> [ en{1}, f{1,1} ]'2 	:: 1;	/**************************************************/
+ /*r15*/   [ dn{1} ]'2 --> [ en{1}, f{1,2} ]'2 	:: 0;	/*		                      */
+ /*r16*/   [ dn{2} ]'2 --> [ en{2}, f{2,1} ]'2 	:: 0.5;	/*  Generating transaction authorizations         */
+ /*r17*/   [ dn{2} ]'2 --> [ en{2}, f{2,2} ]'2 	:: 0.5;	/*		                      */
+ /*r18*/   [ dn{3} ]'2 --> [ en{3}, f{3,1} ]'2 	:: 0.15; 	/*		                      */
+ /*r19*/   [ dn{3} ]'2 --> [ en{3}, f{3,2} ]'2 	:: 0.85;	/**************************************************/
+ 
+ /*r20*/  [ d{i}, en{j}, f{j,i}, v{j}*k{i,6} ]'2 --> b{i}, c{j}, u{i}*k{i,6} -[  ]'2   :: 1: 1<=i<=k{1}, 1<=j<=k{2};  /* Purchases */
+
+ /*r26*/  -[ f{j,i} ]'2 -->  [ # ]'2		:: 1 : 1<=i<=k{1}, 1<=j<=k{2};	/* erase outdoor investment signals. Failed purchases */
+ /*r27*/   -[ en{j} ]'2 --> dn{j} [ ]'2 		:: 1 : 1<=j<=k{2};            	/* sacar fuera y evitamos siga generando fd */
+ /*r28*/   -[ v{j} ]'2 --> v{j} [ ]'2             	:: 1 : 1<=j<=k{2};             	/* send money from transactions to producer */
+ /*r29*/   -[ d{i} ]'2 --> d{i} [ ]'2     		:: 1 : 1<=i<=k{1};             	/* cuasi-restore producer capacity */
+ /*r30*/   -[ r1, r2 ]'2 --> r1, r2 [  ]'2  	:: 1;		/* restore cycle */
+
+}

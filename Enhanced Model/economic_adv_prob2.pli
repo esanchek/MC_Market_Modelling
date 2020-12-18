@@ -1,0 +1,107 @@
+@model<probabilistic>
+
+def main()
+{
+  call init_membrane_structure();
+  call init_multisets();
+  call init_rules();
+}
+
+def init_membrane_structure()
+{
+  @mu = [ [ [ [ ]'2]'1]'101,101]'global;
+}
+
+def init_multisets()
+{
+
+@ms(1) = c, s, r1;																/* Generic raw source, consumer */
+@ms(1) += g{i}	 	             	: 1<=i<=k{1};			 /* Trigger to generate rules of margin of cap incr */	 
+@ms(1) += v{j}*(k{j,3}*k{10}*7)		: 1<=j<=k{2};							/* Retailers initial monetary units */
+@ms(1) += u{i}*(k{i,1}*k{10}*7)		: 1<=i<=k{1};							/* Producers initial monetary units */
+@ms(2) += c{j}*k{j,3}				: 1<=j<=k{2};										/* Retailers capacities */
+@ms(2) += b{i}*k{i,1}				: 1<=i<=k{1};										/* Producers capacities */
+}
+
+def init_rules()
+{
+
+ /******************************************* clock step 1 ******************************************************/
+ /* Raw material from source S. a => units of raw material ******************************************************/
+ /* 1st cycle not random */
+
+ /*r1*/		s, c, r1 [ ]'2 --> s, c, a*k{3}, p*(k{4}-k{3}), dn*k{5}, q*(k{6}-k{5}) +[r1]'2	:: 1;		
+ /*r2*/		p -[ ]'2 --> # [ ]'2				:: 0.5;
+ /*r3*/		p -[ ]'2 --> a [ ]'2				:: 0.5;
+ /*r4*/		q -[ ]'2 --> # [ ]'2				:: 0.5;
+ /*r5*/		q -[ ]'2 --> dn [ ]'2				:: 0.5;
+ 
+ /* Maximum capital stock increase in 1 cycle *******************************************************************/
+ 
+ /*r6*/		g{i} [ ]'2 --> +[ g{i}, y{i}*k{8}, m{i}*(k{9}-k{8}) ]'2		:: 1 : 1<=i<=k{1}; 
+ /*r7*/		+[ m{i} ]'2 --> [ # ]'2										:: 0.5 : 1<=i<=k{1};
+ /*r8*/		+[ m{i} ]'2 --> [ y{i} ]'2									:: 0.5 : 1<=i<=k{1};
+ 
+ /* Pay rents and clear unpayables ******************************************************************************/
+ 
+ /*r9*/     u{i}*k{10} [ b{i} ]'2 --> b{i}, uc*k{10} +[ ]'2	:: 1 : 1<=i<=k{1};      	    /* pay rents + able */
+ /*r10*/    v{j}*k{10} [ c{j} ]'2 --> c{j}, uc*k{10} +[ ]'2	:: 1 : 1<=j<=k{2};      		/* pay rents + able */
+ /*r11*/    +[ b{i} ]'2 --> uc*k{10} [ # ]'2				:: 1:  1<=i<=k{1}; 				 /* clear unpayable */
+ /*r12*/    +[ c{j} ]'2 --> uc*k{10} [ # ]'2				:: 1:  1<=j<=k{2}; 				 /* clear unpayable */
+ /*r13*/    v{j} +[ ]'2 --> [ v{j} ]'2      				:: 1 : 1<=j<=k{2};   /* Trans remaining v purchases */
+
+ /******************************************* clock step 2 ******************************************************/
+
+ /*r14*/    b{i}, a, u{i}*k{7} +[ ]'2 --> uc*k{7} [ d{i} ]'2	    :: 1 : 1<=i<=k{1};    /* Producer operation */
+ /*r15*/   	c{j}, dn, uc*k{j,6} +[ ]'2 --> [ dn{j}, v{j}*k{j,6} ]'2	:: 1 : 1<=j<=k{2};    /* Retailer operation */
+ /*r16*/    b{i} [ ]'2 --> [ h{i} ]'2								:: 1 : 1<=i<=k{1};	  /* pasamos al ss tipo */
+ /*r17*/    c{j} [ ]'2 --> [ c{j} ]'2								:: 1 : 1<=j<=k{2};	  /* pasamos al ss tipo */
+ 
+ /********************************* clock step 3 ****************************************************************/
+
+ /*r18*/   [ dn{1} --> en{1}, f{1,1} ]'2 		:: 1.0;		       	  /******************************************/
+ /*r19*/   [ dn{1} --> en{1}, f{1,2} ]'2 		:: 0.0;		       	  /*		                      	        */
+ /*r20*/   [ dn{2} --> en{2}, f{2,1} ]'2 		:: 0.5;		       	  /*  Generating transaction authorizations */
+ /*r21*/   [ dn{2} --> en{2}, f{2,2} ]'2 		:: 0.5;		       	  /*		                        		*/
+ /*r22*/   [ dn{3} --> en{3}, f{3,1} ]'2 		:: 0.15; 	      	  /*		                    		   	*/
+ /*r23*/   [ dn{3} --> en{3}, f{3,2} ]'2 		:: 0.85;		      /******************************************/
+
+ /* performs purchase transaction *******************************************************************************/
+ 
+ /*r24*/   [ d{i}, en{j}, f{j,i}, v{j}*k{i,2} ]'2 -->  u{i}*k{i,2} -[ h{i}, c{j} ]'2 :: 1: 1<=i<=k{1}, 1<=j<=k{2};
+ 
+ /* dividends are distributed from u's **************************************************************************/
+      	
+ /*r25*/   -[ v{j} ]'2 --> uc [ ]'2	        	:: 0 : 1<=j<=k{2};      	
+ /*r25*/   -[ v{j} ]'2 --> v{j} [ ]'2        	:: 1 : 1<=j<=k{2};      	
+ /*r26*/   u{i} -[  ]'2 --> uc [  ]'2			:: k{13} : 1<=i<=k{1};			
+ /*r27*/   u{i} -[  ]'2 --> u{i} [  ]'2			:: (1-k{13}) : 1<=i<=k{1};		
+
+ /* clear unsense signals + depreciation aplication in some b's *************************************************/
+
+ /*r28*/   -[ f{j,i}, d{i} ]'2 --> [ d{i} ]'2	:: 1 : 1<=i<=k{1}, 1<=j<=k{2};	     		  /* Unsense signal */ 
+ /*r29*/   -[ f{j,i}, h{i} ]'2 --> [ b{i} ]'2	:: (1-k{11}): 1<=i<=k{1}, 1<=j<=k{2};  /* Uns signal+apply depr */ 
+ /*r30*/   -[ f{j,i}, h{i} ]'2 --> [ # ]'2		:: k{11}: 1<=i<=k{1}, 1<=j<=k{2};      /* Uns signal+apply depr */ 
+ 
+ /* apply depreciation to the rest of b's ***********************************************************************/
+
+ /*r31*/   - [ h{i} ]'2 --> [ b{i} ]'2			:: (1-k{11}): 1<=i<=k{1};	     	
+ /*r32*/   - [ h{i} ]'2 -->  [ # ]'2			:: k{11}: 1<=i<=k{1};	     	 	 
+
+ /* Activate f and proceed to apply it **************************************************************************/
+
+ /*r33*/   -[ y{i} ]'2 --> [ z{i} ]'2					:: 1 : 1<=i<=k{1}; 	     	    /*activate f application*/
+ /*r34*/   [ f{j,i}, z{i} ]'2 --> b{i}*k{12} +[  ]'2  	:: 1 : 1<=i<=k{1}, 1<=j<=k{2}; /*exec inversion increase*/   
+ /*r35*/   +[ f{j,i} ]'2 --> [ # ]'2					:: 1 : 1<=i<=k{1}, 1<=j<=k{2};     /* clear auth unused */
+ /*r36*/   +[ z{i} ]'2 --> [ # ]'2						:: 1 : 1<=i<=k{1};     	   /* clear cap incr auth unused*/
+ 
+ /* Leave demand not satisfied in the computational membrane ****************************************************/
+
+ /*r37*/   +[ en{j} ]'2 --> [ dn{j} ]'2 		:: 1 : 1<=j<=k{2};
+ 
+ /* Technical rules to restore cycle ****************************************************************************/
+
+ /*r38*/  -[ r1 ]'2 --> r1 [ ]'2  				:: 1;					
+ /*r39*/  -[ g{i} ]'2 --> g{i} [ ]'2  			:: 1 : 1<=i<=k{1};		
+ 
+}
