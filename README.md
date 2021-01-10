@@ -1,4 +1,4 @@
-# MC_Market_Modelling
+# MEMBRANE COMPUTING MARKET MODELLING
 
 All necessary files are provided for reproducing the results presented in the paper: Sanchez-Karhunen, E., &amp; Valencia-Cabrera, L. (2019). Modelling complex market interactions using PDP systems. Journal of Membrane Computing, 1(1), 40–51. https://doi.org/10.1007/s41965-019-00008-z
 
@@ -27,6 +27,3 @@ Sanchez-Karhunen, E., & Valencia-Cabrera, L. (2017). Membrane Computing Applicat
 ## Useful links
 * MeCoSim documentation http://www.p-lingua.org/mecosim/doc/
 * Research Group in Membrane Computing: http://www.gcn.us.es/
-
-## License
-
