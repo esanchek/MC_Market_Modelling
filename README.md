@@ -17,7 +17,7 @@ Load in MeCoSim the .xls (configuration file) and set the path for .pli (p-lingu
 
 ## Further reading
 
-Extended results where presented in:
+Extended results are presented in:
 
 Sanchez-Karhunen, E., & Valencia-Cabrera, L. (2017). Membrane Computing Applications in Computational Economics. BWMC 2017: 15th Brainstorming Week on Membrane Computing, 189–214. https://idus.us.es/handle/11441/67905
 
